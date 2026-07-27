@@ -21,7 +21,7 @@ from account_runner import load_survias_accounts, run_accounts
 load_dotenv()
 
 # Cargar credenciales y configuración desde .env
-DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:Astaroth312@localhost:5432/LocalNarbus")
+DB_URL = os.getenv("DATABASE_URL")
 
 def clean_directory(directory):
     if os.path.exists(directory):
@@ -131,7 +131,7 @@ def scrape_survias_transitos(rut, password):
     clean_directory(temp_download_dir)
 
     chrome_options = Options()
-    # chrome_options.add_argument("--headless=new") # Descomentar para modo headless en producción/servidor
+    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1280,800")
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
@@ -391,6 +391,10 @@ def scrape_survias_transitos(rut, password):
             shutil.rmtree(temp_download_dir)
 
 if __name__ == "__main__":
+    if not DB_URL:
+        print("Error de configuración: DATABASE_URL no está configurado.")
+        sys.exit(1)
+
     try:
         configured_accounts = load_survias_accounts()
     except ValueError as config_error:

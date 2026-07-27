@@ -45,6 +45,24 @@ Este es un script autónomo diseñado para automatizar el inicio de sesión en l
    Puedes agregar más cuentas siguiendo la misma numeración (`RUT3`,
    `PASSWORD3`, etc.). Cada cuenta se procesa en una sesión nueva de Chrome.
 
+## Ejecución automática en GitHub Actions
+
+El workflow `.github/workflows/survias-scraper.yml` se ejecuta los lunes de
+semanas ISO pares a las 08:00 en la zona horaria `America/Santiago`. También
+se puede iniciar manualmente desde la pestaña **Actions** de GitHub.
+
+Configura estos valores en **Settings → Secrets and variables → Actions →
+New repository secret**:
+
+- `SURVIAS_RUT1`
+- `SURVIAS_PASSWORD1`
+- `SURVIAS_RUT2`
+- `SURVIAS_PASSWORD2`
+- `DATABASE_URL`
+
+El archivo `.env` se usa solamente para ejecuciones locales y está excluido
+del repositorio mediante `.gitignore`.
+
 4. **Ejecutar el script:**
    ```bash
    python survias_scraper.py

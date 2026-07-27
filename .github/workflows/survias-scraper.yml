@@ -1,0 +1,61 @@
+name: Scraper Survias quincenal
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'
+      timezone: America/Santiago
+  workflow_dispatch:
+
+concurrency:
+  group: survias-scraper
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Determinar si corresponde ejecutar
+        id: schedule_gate
+        env:
+          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          if [ "$FORCE_RUN" = "true" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          week_number="$(TZ=America/Santiago date +%V)"
+          if [ $((10#$week_number % 2)) -eq 0 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Semana impar: la ejecución quincenal se omite."
+          fi
+
+      - name: Descargar repositorio
+        if: steps.schedule_gate.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        if: steps.schedule_gate.outputs.run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Instalar dependencias
+        if: steps.schedule_gate.outputs.run == 'true'
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar scraper
+        if: steps.schedule_gate.outputs.run == 'true'
+        env:
+          SURVIAS_RUT1: ${{ secrets.SURVIAS_RUT1 }}
+          SURVIAS_PASSWORD1: ${{ secrets.SURVIAS_PASSWORD1 }}
+          SURVIAS_RUT2: ${{ secrets.SURVIAS_RUT2 }}
+          SURVIAS_PASSWORD2: ${{ secrets.SURVIAS_PASSWORD2 }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python survias_scraper.py
