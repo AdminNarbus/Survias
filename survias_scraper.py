@@ -16,6 +16,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from account_runner import load_survias_accounts, run_accounts
+from download_utils import wait_for_download
 
 # Cargar variables de entorno del archivo .env local
 load_dotenv()
@@ -27,16 +28,6 @@ def clean_directory(directory):
     if os.path.exists(directory):
         shutil.rmtree(directory)
     os.makedirs(directory)
-
-def wait_for_download(download_dir, timeout=30):
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        files = os.listdir(download_dir)
-        valid_files = [f for f in files if not f.endswith('.crdownload') and not f.endswith('.tmp')]
-        if valid_files:
-            return os.path.join(download_dir, valid_files[0])
-        time.sleep(1)
-    return None
 
 def save_excel_to_postgres(file_path, db_url):
     print(f"Leyendo archivo Excel para importar: {file_path}")
