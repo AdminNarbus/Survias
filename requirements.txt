@@ -1,0 +1,6 @@
+selenium==4.45.0
+beautifulsoup4==4.14.3
+requests==2.33.1
+psycopg2-binary==2.9.11
+openpyxl==3.1.5
+python-dotenv==1.2.2
