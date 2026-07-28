@@ -55,10 +55,10 @@ def save_excel_to_postgres(file_path, db_url):
     cur = conn.cursor()
 
     try:
-        # Asegurar la creación del esquema raw y la tabla pasajes_survias
+        # Asegurar la creación del esquema raw y la tabla peajes_survias
         cur.execute("CREATE SCHEMA IF NOT EXISTS raw;")
         cur.execute("""
-            CREATE TABLE IF NOT EXISTS raw.pasajes_survias (
+            CREATE TABLE IF NOT EXISTS raw.peajes_survias (
                 id SERIAL PRIMARY KEY,
                 patente VARCHAR(50) NOT NULL,
                 fecha VARCHAR(50) NOT NULL,
@@ -66,8 +66,9 @@ def save_excel_to_postgres(file_path, db_url):
                 punto_cobro VARCHAR(150) NOT NULL,
                 categoria VARCHAR(100),
                 monto NUMERIC(10, 2),
+                origen VARCHAR(100) DEFAULT 'survias',
                 fecha_importacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                CONSTRAINT unique_transito UNIQUE (patente, fecha, hora, punto_cobro)
+                CONSTRAINT peajes_survias_unique_transito UNIQUE (patente, fecha, hora, punto_cobro)
             );
         """)
         conn.commit()
@@ -92,10 +93,20 @@ def save_excel_to_postgres(file_path, db_url):
 
             # Insertar en base de datos previniendo duplicados
             cur.execute("""
-                INSERT INTO raw.pasajes_survias (patente, fecha, hora, punto_cobro, categoria, monto)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO raw.peajes_survias (
+                    patente, fecha, hora, punto_cobro, categoria, monto, origen
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (patente, fecha, hora, punto_cobro) DO NOTHING;
-            """, (patente, fecha_str, hora, punto_cobro, categoria, monto))
+            """, (
+                patente,
+                fecha_str,
+                hora,
+                punto_cobro,
+                categoria,
+                monto,
+                "survias",
+            ))
             
             row_count += 1
             if cur.rowcount > 0:
@@ -347,8 +358,9 @@ def scrape_survias_transitos(rut, password):
         print("\n¡Bucle de descargas de todos los convenios completado con éxito!")
         
         # 9. Importar los archivos descargados a Postgres
+        import_succeeded = True
         if downloaded_files:
-            print(f"\nIniciando importación a la base de datos Postgres ({DB_URL})...")
+            print("\nIniciando importación a la base de datos Postgres...")
             totales_leidos = 0
             totales_nuevos = 0
             for file_path in downloaded_files:
@@ -357,6 +369,7 @@ def scrape_survias_transitos(rut, password):
                     totales_leidos += leidos
                     totales_nuevos += nuevos
                 except Exception as ex_import:
+                    import_succeeded = False
                     print(f"Error al importar {file_path}: {ex_import}")
             print(f"\n¡Importación completada! Total registros procesados: {totales_leidos}. Nuevos registros agregados: {totales_nuevos}.")
             
@@ -370,7 +383,7 @@ def scrape_survias_transitos(rut, password):
         else:
             print("\nNo se descargaron nuevos reportes en esta ejecución. Nada que importar.")
 
-        return True
+        return import_succeeded
 
     except Exception as e:
         print(f"Ocurrió un error durante la ejecución del script: {e}")
