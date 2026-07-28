@@ -15,7 +15,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
-from account_runner import load_survias_accounts, run_accounts
+from account_runner import get_survias_company, load_survias_accounts, run_accounts
 from download_utils import wait_for_download
 
 # Cargar variables de entorno del archivo .env local
@@ -29,7 +29,7 @@ def clean_directory(directory):
         shutil.rmtree(directory)
     os.makedirs(directory)
 
-def save_excel_to_postgres(file_path, db_url):
+def save_excel_to_postgres(file_path, db_url, company):
     print(f"Leyendo archivo Excel para importar: {file_path}")
     
     # Solución al error de openpyxl con los márgenes de página en el XML
@@ -67,14 +67,20 @@ def save_excel_to_postgres(file_path, db_url):
                 categoria VARCHAR(100),
                 monto NUMERIC(10, 2),
                 origen VARCHAR(100) DEFAULT 'survias',
+                empresa VARCHAR(150),
                 fecha_importacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 CONSTRAINT peajes_survias_unique_transito UNIQUE (patente, fecha, hora, punto_cobro)
             );
+        """)
+        cur.execute("""
+            ALTER TABLE raw.peajes_survias
+            ADD COLUMN IF NOT EXISTS empresa VARCHAR(150);
         """)
         conn.commit()
 
         row_count = 0
         inserted_count = 0
+        updated_count = 0
         
         # Leer filas (omitiendo la cabecera en fila 1)
         for row in ws.iter_rows(min_row=2, values_only=True):
@@ -94,10 +100,14 @@ def save_excel_to_postgres(file_path, db_url):
             # Insertar en base de datos previniendo duplicados
             cur.execute("""
                 INSERT INTO raw.peajes_survias (
-                    patente, fecha, hora, punto_cobro, categoria, monto, origen
+                    patente, fecha, hora, punto_cobro, categoria, monto, origen, empresa
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (patente, fecha, hora, punto_cobro) DO NOTHING;
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (patente, fecha, hora, punto_cobro)
+                DO UPDATE SET
+                    empresa = EXCLUDED.empresa,
+                    origen = EXCLUDED.origen
+                RETURNING (xmax = 0) AS inserted;
             """, (
                 patente,
                 fecha_str,
@@ -106,14 +116,22 @@ def save_excel_to_postgres(file_path, db_url):
                 categoria,
                 monto,
                 "survias",
+                company,
             ))
             
             row_count += 1
-            if cur.rowcount > 0:
+            was_inserted = cur.fetchone()[0]
+            if was_inserted:
                 inserted_count += 1
+            else:
+                updated_count += 1
 
         conn.commit()
-        print(f"Importación completa de {os.path.basename(file_path)}. Filas procesadas: {row_count}. Nuevas: {inserted_count}.")
+        print(
+            f"Importación completa de {os.path.basename(file_path)}. "
+            f"Filas procesadas: {row_count}. Nuevas: {inserted_count}. "
+            f"Actualizadas: {updated_count}."
+        )
         return row_count, inserted_count
 
     except Exception as ex:
@@ -125,6 +143,7 @@ def save_excel_to_postgres(file_path, db_url):
         conn.close()
 
 def scrape_survias_transitos(rut, password):
+    company = get_survias_company(rut)
     base_dir = os.getcwd()
     temp_download_dir = os.path.join(base_dir, "temp_downloads")
     final_download_dir = os.path.join(base_dir, "downloads")
@@ -281,8 +300,10 @@ def scrape_survias_transitos(rut, password):
             today = datetime.date.today()
             yesterday = today - datetime.timedelta(days=1)
             start_of_period = yesterday.replace(day=1)
-            fecha_desde = start_of_period.strftime('%d-%m-%Y')
-            fecha_hasta = yesterday.strftime('%d-%m-%Y')
+            # fecha_desde = start_of_period.strftime('%d-%m-%Y')
+            # fecha_hasta = yesterday.strftime('%d-%m-%Y')
+            fecha_desde = "01-01-2026"
+            fecha_hasta = "30-06-2026"
             fecha_hoy_str = today.strftime('%Y-%m-%d')
 
             print(f"Configurando rango de fechas: Desde {fecha_desde} hasta {fecha_hasta} (d-1)...")
@@ -365,7 +386,7 @@ def scrape_survias_transitos(rut, password):
             totales_nuevos = 0
             for file_path in downloaded_files:
                 try:
-                    leidos, nuevos = save_excel_to_postgres(file_path, DB_URL)
+                    leidos, nuevos = save_excel_to_postgres(file_path, DB_URL, company)
                     totales_leidos += leidos
                     totales_nuevos += nuevos
                 except Exception as ex_import:

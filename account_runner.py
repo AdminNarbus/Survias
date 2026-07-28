@@ -4,6 +4,21 @@ import re
 
 ACCOUNT_KEY_PATTERN = re.compile(r"^SURVIAS_(RUT|PASSWORD)(\d+)$")
 
+SURVIAS_COMPANIES = {
+    "965503005": "TRANSPORTES NAR-BUS SA",
+    "965218009": "CIA DE TRANSP IGI LLAIMA INT SA",
+}
+
+
+def get_survias_company(rut):
+    normalized_rut = str(rut).replace(".", "").replace("-", "").strip()
+    try:
+        return SURVIAS_COMPANIES[normalized_rut]
+    except KeyError as exc:
+        raise ValueError(
+            f"RUT Survías sin empresa configurada: {normalized_rut}"
+        ) from exc
+
 
 def load_survias_accounts(environ=None):
     environ = os.environ if environ is None else environ
