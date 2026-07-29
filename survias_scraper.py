@@ -300,10 +300,8 @@ def scrape_survias_transitos(rut, password):
             today = datetime.date.today()
             yesterday = today - datetime.timedelta(days=1)
             start_of_period = yesterday.replace(day=1)
-            # fecha_desde = start_of_period.strftime('%d-%m-%Y')
-            # fecha_hasta = yesterday.strftime('%d-%m-%Y')
-            fecha_desde = "01-01-2026"
-            fecha_hasta = "30-06-2026"
+            fecha_desde = start_of_period.strftime('%d-%m-%Y')
+            fecha_hasta = yesterday.strftime('%d-%m-%Y')
             fecha_hoy_str = today.strftime('%Y-%m-%d')
 
             print(f"Configurando rango de fechas: Desde {fecha_desde} hasta {fecha_hasta} (d-1)...")
