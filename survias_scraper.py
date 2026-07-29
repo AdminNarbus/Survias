@@ -17,7 +17,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from account_runner import get_survias_company, load_survias_accounts, run_accounts
 from download_utils import wait_for_download
-from survias_data import parse_survias_date
 
 # Cargar variables de entorno del archivo .env local
 load_dotenv()
@@ -90,7 +89,7 @@ def save_excel_to_postgres(file_path, db_url, company):
                 
             patente = str(row[0]).strip()
             fecha_str = str(row[1]).strip()
-            fecha = parse_survias_date(fecha_str)
+            fecha = datetime.datetime.strptime(fecha_str, "%d-%m-%Y").date()
             hora_str = str(row[2]).strip()
             punto_cobro = str(row[3]).strip()
             categoria = str(row[4]).strip() if row[4] is not None else None
