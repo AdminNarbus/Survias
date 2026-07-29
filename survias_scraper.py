@@ -303,6 +303,8 @@ def scrape_survias_transitos(rut, password):
             yesterday = today - datetime.timedelta(days=1)
             start_of_period = yesterday.replace(day=1)
             fecha_desde = start_of_period.strftime('%d-%m-%Y')
+            fecha_hasta = yesterday.strftime('%d-%m-%Y')
+            fecha_hoy_str = today.strftime('%Y-%m-%d')
 
             print(f"Configurando rango de fechas: Desde {fecha_desde} hasta {fecha_hasta} (d-1)...")
             driver.execute_script("document.getElementById('transito_desde').removeAttribute('readonly');")
