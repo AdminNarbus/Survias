@@ -17,6 +17,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from account_runner import get_survias_company, load_survias_accounts, run_accounts
 from download_utils import wait_for_download
+from survias_data import parse_survias_date
 
 # Cargar variables de entorno del archivo .env local
 load_dotenv()
@@ -61,7 +62,7 @@ def save_excel_to_postgres(file_path, db_url, company):
             CREATE TABLE IF NOT EXISTS raw.peajes_survias (
                 id SERIAL PRIMARY KEY,
                 patente VARCHAR(50) NOT NULL,
-                fecha VARCHAR(50) NOT NULL,
+                fecha DATE NOT NULL,
                 hora TIME NOT NULL,
                 punto_cobro VARCHAR(150) NOT NULL,
                 categoria VARCHAR(100),
@@ -89,6 +90,7 @@ def save_excel_to_postgres(file_path, db_url, company):
                 
             patente = str(row[0]).strip()
             fecha_str = str(row[1]).strip()
+            fecha = parse_survias_date(fecha_str)
             hora_str = str(row[2]).strip()
             punto_cobro = str(row[3]).strip()
             categoria = str(row[4]).strip() if row[4] is not None else None
@@ -110,7 +112,7 @@ def save_excel_to_postgres(file_path, db_url, company):
                 RETURNING (xmax = 0) AS inserted;
             """, (
                 patente,
-                fecha_str,
+                fecha,
                 hora,
                 punto_cobro,
                 categoria,
@@ -300,11 +302,7 @@ def scrape_survias_transitos(rut, password):
             today = datetime.date.today()
             yesterday = today - datetime.timedelta(days=1)
             start_of_period = yesterday.replace(day=1)
-            # fecha_desde = start_of_period.strftime('%d-%m-%Y')
-            # fecha_hasta = yesterday.strftime('%d-%m-%Y')
-            fecha_desde = "01-01-2026"
-            fecha_hasta = "30-06-2026"
-            fecha_hoy_str = today.strftime('%Y-%m-%d')
+            fecha_desde = start_of_period.strftime('%d-%m-%Y')
 
             print(f"Configurando rango de fechas: Desde {fecha_desde} hasta {fecha_hasta} (d-1)...")
             driver.execute_script("document.getElementById('transito_desde').removeAttribute('readonly');")
